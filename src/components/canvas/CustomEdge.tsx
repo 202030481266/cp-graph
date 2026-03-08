@@ -1,34 +1,42 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  useReactFlow,
+  useStore,
   type EdgeProps,
+  type ReactFlowState,
 } from '@xyflow/react';
 
-interface EdgeData {
-  weight?: number;
-  isHighlighted?: boolean;
-  directed?: boolean;
-}
-
-export const CustomEdge: React.FC<EdgeProps<EdgeData>> = ({
+export const CustomEdge: React.FC<EdgeProps> = ({
   id,
   source,
   target,
   data,
   style,
 }) => {
-  const { getNode } = useReactFlow();
-
-  // 获取源节点和目标节点
-  const sourceNode = getNode(source);
-  const targetNode = getNode(target);
+  // 使用 useStore 订阅节点位置变化，实现更流畅的拖动效果
+  const nodePositions = useStore(useCallback((store: ReactFlowState) => {
+    const sourceNode = store.nodeLookup.get(source);
+    const targetNode = store.nodeLookup.get(target);
+    return {
+      sourceX: (sourceNode?.position?.x as number) ?? 0,
+      sourceY: (sourceNode?.position?.y as number) ?? 0,
+      targetX: (targetNode?.position?.x as number) ?? 0,
+      targetY: (targetNode?.position?.y as number) ?? 0,
+    };
+  }, [source, target]));
 
   // 节点半径 (CustomNode 尺寸是 32x32px，边框 1px，可视填充区域半径约 15px)
   const nodeRadius = 15;
-  // 箭头大小
-  const arrowSize = 10;
+  // 箭头大小 - 锐利细长设计
+  const arrowSize = 12;                // 增加长度，让箭头更细长
+  const baseLength = arrowSize * 0.35; // 3.5，更窄的底部，锐利效果
+
+  // 提取 data 属性
+  const edgeData = data as { weight?: number; isHighlighted?: boolean; directed?: boolean } | undefined;
+  const weight = edgeData?.weight;
+  const isHighlighted = edgeData?.isHighlighted;
+  const directed = edgeData?.directed;
 
   // 计算从节点中心到节点边缘的点
   const getEdgePoint = (
@@ -55,10 +63,10 @@ export const CustomEdge: React.FC<EdgeProps<EdgeData>> = ({
   const nodeSize = 32;
   const halfSize = nodeSize / 2;
 
-  const sourceCenterX = (sourceNode?.position?.x ?? 0) + halfSize;
-  const sourceCenterY = (sourceNode?.position?.y ?? 0) + halfSize;
-  const targetCenterX = (targetNode?.position?.x ?? 0) + halfSize;
-  const targetCenterY = (targetNode?.position?.y ?? 0) + halfSize;
+  const sourceCenterX = nodePositions.sourceX + halfSize;
+  const sourceCenterY = nodePositions.sourceY + halfSize;
+  const targetCenterX = nodePositions.targetX + halfSize;
+  const targetCenterY = nodePositions.targetY + halfSize;
 
   // 计算边的起点（从源节点圆形边缘开始）
   const sourceEdgePoint = getEdgePoint(
@@ -88,12 +96,12 @@ export const CustomEdge: React.FC<EdgeProps<EdgeData>> = ({
   const labelY = (sourceEdgePoint.y + targetEdgePoint.y) / 2;
 
   // 颜色
-  const strokeColor = data?.isHighlighted ? '#ff6b6b' : '#000000';
-  const strokeWidth = data?.isHighlighted ? 2 : 1;
+  const strokeColor = isHighlighted ? '#ff6b6b' : '#000000';
+  const strokeWidth = isHighlighted ? 2 : 1;
 
   // 计算箭头路径（手动绘制，确保尖端正好在目标节点边缘）
   const getArrowPath = () => {
-    if (!data?.directed) return null;
+    if (!directed) return null;
 
     const dx = sourceCenterX - targetCenterX;
     const dy = sourceCenterY - targetCenterY;
@@ -114,7 +122,6 @@ export const CustomEdge: React.FC<EdgeProps<EdgeData>> = ({
     const py = ux;
 
     // 箭头底部两点
-    const baseLength = arrowSize * 0.6;
     const arrowBack = arrowSize;
 
     return `M ${tipX} ${tipY} L ${tipX + ux * arrowBack + px * baseLength} ${tipY + uy * arrowBack + py * baseLength} L ${tipX + ux * arrowBack - px * baseLength} ${tipY + uy * arrowBack - py * baseLength} Z`;
@@ -128,10 +135,10 @@ export const CustomEdge: React.FC<EdgeProps<EdgeData>> = ({
         id={id}
         path={edgePath}
         style={{
-          ...style,
           stroke: strokeColor,
           strokeWidth,
-          transition: 'all 0.2s ease',
+          willChange: 'stroke', // 优化边的绘制性能
+          ...style,
         }}
       />
       {arrowPath && (
@@ -139,9 +146,10 @@ export const CustomEdge: React.FC<EdgeProps<EdgeData>> = ({
           d={arrowPath}
           fill={strokeColor}
           stroke="none"
+          style={{ willChange: 'transform' }} // 优化箭头渲染性能
         />
       )}
-      {data?.weight !== undefined && (
+      {weight !== undefined && (
         <EdgeLabelRenderer>
           <div
             style={{
@@ -155,7 +163,7 @@ export const CustomEdge: React.FC<EdgeProps<EdgeData>> = ({
               pointerEvents: 'all',
             }}
           >
-            {data.weight}
+            {weight}
           </div>
         </EdgeLabelRenderer>
       )}

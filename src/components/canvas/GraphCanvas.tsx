@@ -174,6 +174,9 @@ function GraphCanvasInner() {
         panOnDrag={[1, 2]}
         selectionMode={SelectionMode.Partial}
         proOptions={{ hideAttribution: true }}
+        // 优化拖动体验
+        elevateNodesOnSelect={false}
+        nodeDragThreshold={0}
       >
         <Background color="#e5e5e5" gap={20} size={0.5} />
         <Controls

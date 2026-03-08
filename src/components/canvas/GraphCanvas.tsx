@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css';
 
 import CustomNode from './CustomNode';
 import CustomEdge from './CustomEdge';
+import CustomConnectionLine from './CustomConnectionLine';
 import { useGraphStore, generateNodeId, generateEdgeId } from '../../store/graphStore';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -163,6 +164,7 @@ function GraphCanvasInner() {
         onEdgeContextMenu={onEdgeContextMenu}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        connectionLineComponent={CustomConnectionLine}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}

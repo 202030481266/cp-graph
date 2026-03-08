@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Consolas', 'Monaco', 'JetBrains Mono', monospace;
+  background-color: #ffffff;
+  color: #1f2937;
+  overflow: hidden;
+}
+
+/* React Flow custom styles */
+.react-flow__node {
+  font-family: inherit;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.react-flow__edge-path {
+  stroke-width: 1.5;
+}
+
+.react-flow__edge-textbg {
+  fill: #ffffff;
+}
+
+.react-flow__edge-text {
+  font-size: 11px;
+  fill: #333;
+}
+
+/* Smooth dragging */
+.react-flow {
+  cursor: grab;
+}
+
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+/* Resizer styles */
+.resizer {
+  width: 3px;
+  background: transparent;
+  cursor: col-resize;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 10;
+  transition: background-color 0.15s;
+}
+
+.resizer:hover {
+  background: #000;
+}
+
+.resizer:active {
+  background: #000;
+}
+
+/* Controls styling - minimal */
+.react-flow__controls {
+  border: 1px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.react-flow__controls-button {
+  background: #fff !important;
+  border-bottom: 1px solid #000 !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #f5f5f5 !important;
+}
+
+.react-flow__controls-button svg {
+  fill: #000 !important;
+}

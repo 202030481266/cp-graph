@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(powershell -Command:*)",
+      "WebSearch",
+      "Bash(npm create vite@latest .:*)",
+      "Bash(npm create vite@latest:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)",
+      "mcp__zai-mcp-server__analyze_image",
+      "Bash(timeout:*)",
+      "mcp__zai-mcp-server__extract_text_from_screenshot"
+    ]
+  }
+}

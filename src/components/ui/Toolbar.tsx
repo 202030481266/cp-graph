@@ -446,8 +446,7 @@ export default function Toolbar() {
               key={label}
               onClick={fn}
               style={btnStyle}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#000'}
-              onMouseEnterCapture={(e) => e.currentTarget.style.color = '#fff'}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#000'; e.currentTarget.style.color = '#fff'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#000'; }}
             >
               {label}

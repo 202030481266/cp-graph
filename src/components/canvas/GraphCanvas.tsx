@@ -9,13 +9,13 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
 } from '@xyflow/react';
-import type { Connection, NodeTypes, EdgeTypes, NodeChange, EdgeChange } from '@xyflow/react';
+import type { Connection, NodeTypes, EdgeTypes, NodeChange, EdgeChange, Node } from '@xyflow/react';
+import type { GraphNode } from '../../types/graph';
 import '@xyflow/react/dist/style.css';
 
 import CustomNode from './CustomNode';
 import CustomEdge from './CustomEdge';
 import { useGraphStore, generateNodeId, generateEdgeId } from '../../store/graphStore';
-import { binaryLiftingLCA } from '../../algorithms/lca';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const nodeTypes: NodeTypes = {
@@ -35,13 +35,11 @@ function GraphCanvasInner() {
     nodes,
     edges,
     config,
-    selectedNodes,
     setNodes: setStoreNodes,
     addNode,
     addEdge: addStoreEdge,
     removeNode,
     toggleNodeSelection,
-    setAlgorithmResult,
     resetHighlights,
   } = useGraphStore();
 
@@ -57,8 +55,8 @@ function GraphCanvasInner() {
   // Handle node changes (drag, select, etc.) - sync directly to store
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      const newNodes = applyNodeChanges(changes, nodes);
-      setStoreNodes(newNodes);
+      const newNodes = applyNodeChanges(changes, nodes as Node[]);
+      setStoreNodes(newNodes as GraphNode[]);
     },
     [nodes, setStoreNodes]
   );

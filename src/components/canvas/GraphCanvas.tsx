@@ -6,7 +6,6 @@ import {
   ReactFlowProvider,
   useReactFlow,
   SelectionMode,
-  MarkerType,
   applyNodeChanges,
   applyEdgeChanges,
 } from '@xyflow/react';
@@ -46,11 +45,11 @@ function GraphCanvasInner() {
     resetHighlights,
   } = useGraphStore();
 
-  // Add markers to edges for directed graphs
+  // Add directed flag to edge data for CustomEdge to use
   const edgesWithMarkers = useMemo(() => {
     return edges.map(edge => ({
       ...edge,
-      markerEnd: config.directed ? { type: MarkerType.ArrowClosed, color: '#000000', width: 10, height: 10, strokeWidth: 1.5 } : undefined,
+      // CustomEdge 组件已经手动绘制箭头，不需要使用 markerEnd
       data: { ...edge.data, directed: config.directed },
     }));
   }, [edges, config.directed]);

@@ -69,9 +69,9 @@ export const CustomEdge: React.FC<EdgeProps<EdgeData>> = ({
     nodeRadius
   );
 
-  // 有向图：边的终点在目标节点边缘预留箭头空间
-  // 无向图：边的终点就在目标节点边缘
-  const targetOffset = data?.directed ? nodeRadius + arrowSize : nodeRadius;
+  // 有向图和无向图：边的终点都在目标节点边缘
+  // 箭头是单独绘制的，不需要在边的终点预留额外空间
+  const targetOffset = nodeRadius;
   const targetEdgePoint = getEdgePoint(
     targetCenterX,
     targetCenterY,

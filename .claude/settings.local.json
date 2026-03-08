@@ -13,7 +13,8 @@
       "Bash(npm run build:*)",
       "mcp__zai-mcp-server__analyze_image",
       "Bash(timeout:*)",
-      "mcp__zai-mcp-server__extract_text_from_screenshot"
+      "mcp__zai-mcp-server__extract_text_from_screenshot",
+      "Bash(npm run lint)"
     ]
   }
 }

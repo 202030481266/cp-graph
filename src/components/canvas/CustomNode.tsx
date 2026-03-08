@@ -35,21 +35,18 @@ const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
     textColor = '#ffffff';
   }
 
-  // Handle 覆盖整个节点，放在中心位置
+  // Handle 样式 - 使用较小的尺寸，放置在节点边缘
   const handleStyle = {
-    position: 'absolute' as const,
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: 32,
-    height: 32,
-    borderRadius: '50%',
-    opacity: 0,
+    width: 8,
+    height: 8,
+    backgroundColor: 'transparent',
     border: 'none',
+    opacity: 0,
   };
 
   return (
     <div
+      className="custom-node"
       style={{
         width: 32,
         height: 32,
@@ -61,10 +58,21 @@ const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
         justifyContent: 'center',
         boxShadow: selected ? '0 0 0 2px rgba(0, 0, 0, 0.15)' : 'none',
         transition: 'all 0.15s ease',
+        position: 'relative',
       }}
     >
+      {/* 四个方向的 Handle - target (输入) */}
       <Handle type="target" position={Position.Top} style={handleStyle} />
+      <Handle type="target" position={Position.Bottom} style={handleStyle} />
+      <Handle type="target" position={Position.Left} style={handleStyle} />
+      <Handle type="target" position={Position.Right} style={handleStyle} />
+
+      {/* 四个方向的 Handle - source (输出) */}
       <Handle type="source" position={Position.Top} style={handleStyle} />
+      <Handle type="source" position={Position.Bottom} style={handleStyle} />
+      <Handle type="source" position={Position.Left} style={handleStyle} />
+      <Handle type="source" position={Position.Right} style={handleStyle} />
+
       <span style={{
         fontSize: 12,
         fontWeight: 400,

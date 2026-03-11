@@ -4,7 +4,6 @@ import { useStore } from '@xyflow/react';
 import type { ReactFlowState } from '@xyflow/react';
 import { useGraphStore } from '../../store/graphStore';
 import { generateConnectionArrowPath } from '../../utils/arrow';
-import { getEdgePoint } from '../../utils/geometry';
 import { NODE_SIZE, NODE_INNER_RADIUS } from '../../constants/graph';
 
 const HALF_NODE_SIZE = NODE_SIZE / 2;
@@ -34,25 +33,19 @@ export const CustomConnectionLine: React.FC<ConnectionLineComponentProps> = ({
   const sourceCenterX = sourcePosition.x + HALF_NODE_SIZE;
   const sourceCenterY = sourcePosition.y + HALF_NODE_SIZE;
 
-  // 除零保护
   const dx = toX - sourceCenterX;
   const dy = toY - sourceCenterY;
   const distance = Math.sqrt(dx * dx + dy * dy);
-  if (distance < 1) return null;
+  if (distance < NODE_INNER_RADIUS) return null;
 
-  // 计算圆边起点
-  const edgeStart = getEdgePoint(
-    sourceCenterX,
-    sourceCenterY,
-    toX,
-    toY,
-    NODE_INNER_RADIUS
-  );
+  const ratio = NODE_INNER_RADIUS / distance;
+  const edgeStartX = sourceCenterX + dx * ratio;
+  const edgeStartY = sourceCenterY + dy * ratio;
 
-  const linePath = `M ${edgeStart.x} ${edgeStart.y} L ${toX} ${toY}`;
+  const linePath = `M ${edgeStartX} ${edgeStartY} L ${toX} ${toY}`;
 
   const arrowPath = directed
-    ? generateConnectionArrowPath(edgeStart.x, edgeStart.y, toX, toY)
+    ? generateConnectionArrowPath(edgeStartX, edgeStartY, toX, toY)
     : null;
 
   return (

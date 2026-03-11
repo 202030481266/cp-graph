@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useGraphStore, resetCounters } from '../../store/graphStore';
+import type { GraphNode, GraphEdge } from '../../types/graph';
 import {
   generateRandomGraph,
   generateRandomTree,
@@ -11,6 +12,50 @@ import {
 import { dijkstra, bfs } from '../../algorithms/shortestPath';
 import { kosaraju } from '../../algorithms/scc';
 import { dagLayout, applyDAGLayout } from '../../algorithms/topoSort';
+
+// Module-level styles (avoid recreation on every render)
+const inputStyle = {
+  width: '100%',
+  padding: '6px 8px',
+  border: '1px solid #000',
+  borderRadius: 0,
+  fontSize: 13,
+  fontFamily: 'Consolas, Monaco, monospace',
+  outline: 'none',
+} as const;
+
+const btnStyle = {
+  padding: '6px 12px',
+  border: '1px solid #000',
+  borderRadius: 0,
+  fontSize: 12,
+  cursor: 'pointer',
+  backgroundColor: '#fff',
+  transition: 'all 0.15s',
+} as const;
+
+const primaryBtnStyle = {
+  ...btnStyle,
+  backgroundColor: '#000',
+  color: '#fff',
+  border: 'none',
+  fontWeight: 500,
+} as const;
+
+const sectionTitleStyle = {
+  fontSize: 10,
+  fontWeight: 600,
+  color: '#000',
+  marginBottom: 8,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.5px',
+} as const;
+
+// Button hover handlers
+const handleButtonHover = (e: React.MouseEvent<HTMLButtonElement>, isHovered: boolean) => {
+  e.currentTarget.style.backgroundColor = isHovered ? '#000' : '#fff';
+  e.currentTarget.style.color = isHovered ? '#fff' : '#000';
+};
 
 export default function Toolbar() {
   const {
@@ -35,11 +80,24 @@ export default function Toolbar() {
   const [manualEdges, setManualEdges] = useState('');
   const [width, setWidth] = useState(260);
   const [isDragging, setIsDragging] = useState(false);
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+  });
 
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  const canvasWidth = window.innerWidth - width - 50;
-  const canvasHeight = window.innerHeight - 100;
+  // Update window size on resize
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const canvasWidth = windowSize.width - width - 50;
+  const canvasHeight = windowSize.height - 100;
 
   // Handle resize dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -71,62 +129,54 @@ export default function Toolbar() {
     };
   }, [isDragging]);
 
-  const handleGenerateRandomGraph = () => {
-    resetCounters();
-    resetHighlights();
-    const result = generateRandomGraph(
-      nodeCount,
-      edgeProb,
-      config.directed,
-      config.weighted,
-      canvasWidth,
-      canvasHeight
-    );
-    setNodes(result.nodes);
-    setEdges(result.edges);
-  };
+  // Generic handler factory for graph generation
+  const createGenerateHandler = useCallback(
+    (
+      generator: (
+        w: number,
+        h: number
+      ) => { nodes: GraphNode[]; edges: GraphEdge[] }
+    ) => {
+      return () => {
+        resetCounters();
+        resetHighlights();
+        const result = generator(canvasWidth, canvasHeight);
+        setNodes(result.nodes);
+        setEdges(result.edges);
+      };
+    },
+    [canvasWidth, canvasHeight, setNodes, setEdges, resetHighlights]
+  );
 
-  const handleGenerateTree = () => {
-    resetCounters();
-    resetHighlights();
-    const result = generateRandomTree(nodeCount, config.weighted, canvasWidth, canvasHeight);
-    setNodes(result.nodes);
-    setEdges(result.edges);
-  };
+  const handleGenerateRandomGraph = createGenerateHandler((w, h) =>
+    generateRandomGraph(nodeCount, edgeProb, config.directed, config.weighted, w, h)
+  );
 
-  const handleGenerateStar = () => {
-    resetCounters();
-    resetHighlights();
-    const result = generateStarGraph(nodeCount, config.weighted, canvasWidth, canvasHeight);
-    setNodes(result.nodes);
-    setEdges(result.edges);
-  };
+  const handleGenerateTree = createGenerateHandler((w, h) =>
+    generateRandomTree(nodeCount, config.weighted, w, h)
+  );
 
-  const handleGenerateComplete = () => {
-    resetCounters();
-    resetHighlights();
-    const result = generateCompleteGraph(nodeCount, config.weighted, canvasWidth, canvasHeight);
-    setNodes(result.nodes);
-    setEdges(result.edges);
-  };
+  const handleGenerateStar = createGenerateHandler((w, h) =>
+    generateStarGraph(nodeCount, config.weighted, w, h)
+  );
 
-  const handleGenerateChain = () => {
-    resetCounters();
-    resetHighlights();
-    const result = generateChainGraph(nodeCount, config.weighted, canvasWidth, canvasHeight);
-    setNodes(result.nodes);
-    setEdges(result.edges);
-  };
+  const handleGenerateComplete = createGenerateHandler((w, h) =>
+    generateCompleteGraph(nodeCount, config.weighted, w, h)
+  );
 
-  const handleGenerateGrid = () => {
+  const handleGenerateChain = createGenerateHandler((w, h) =>
+    generateChainGraph(nodeCount, config.weighted, w, h)
+  );
+
+  const handleGenerateGrid = useCallback(() => {
     resetCounters();
     resetHighlights();
     const result = generateGridGraph(gridRows, gridCols, config.weighted, canvasWidth, canvasHeight);
     setNodes(result.nodes);
     setEdges(result.edges);
-  };
+  }, [gridRows, gridCols, config.weighted, canvasWidth, canvasHeight, setNodes, setEdges, resetHighlights]);
 
-  const handleManualInput = () => {
+  const handleManualInput = useCallback(() => {
     resetCounters();
     resetHighlights();
 
@@ -138,10 +188,10 @@ export default function Toolbar() {
       if (nodesStr.startsWith('[')) {
         nodeLabels = JSON.parse(nodesStr);
       } else {
-        nodeLabels = nodesStr.split(/[\s,]+/).filter(s => s.length > 0);
+        nodeLabels = nodesStr.split(/[\s,]+/).filter((s) => s.length > 0);
       }
 
-      // Parse edges: "0-1 1-2" or "0 1, 1 2" or "[[0,1],[1,2]]" or "0-1:5 1-2:3" (with weights)
+      // Parse edges: "0-1 1-2" or "0 1, 1 2" or "[[0,1],[1,2]]" or "0-1:5 1-2:3"
       const edgePairs: { from: string; to: string; weight?: number }[] = [];
       const edgesStr = manualEdges.trim();
 
@@ -153,8 +203,7 @@ export default function Toolbar() {
           }
         }
       } else {
-        // Support formats: "0-1", "0 1", "0-1:5" (with weight)
-        const edgeParts = edgesStr.split(/[\s,]+/).filter(s => s.length > 0);
+        const edgeParts = edgesStr.split(/[\s,]+/).filter((s) => s.length > 0);
         for (const part of edgeParts) {
           if (part.includes('-')) {
             const withWeight = part.split(':');
@@ -162,7 +211,7 @@ export default function Toolbar() {
             edgePairs.push({
               from,
               to,
-              weight: withWeight[1] ? parseInt(withWeight[1]) : undefined
+              weight: withWeight[1] ? parseInt(withWeight[1]) : undefined,
             });
           }
         }
@@ -170,7 +219,7 @@ export default function Toolbar() {
 
       // Create nodes
       const labelToId = new Map<string, string>();
-      const newNodes: typeof nodes = [];
+      const newNodes: GraphNode[] = [];
 
       for (const label of nodeLabels) {
         const id = `node_${label}`;
@@ -187,7 +236,7 @@ export default function Toolbar() {
       }
 
       // Create edges
-      const newEdges: typeof edges = [];
+      const newEdges: GraphEdge[] = [];
       for (const { from, to, weight } of edgePairs) {
         const sourceId = labelToId.get(from);
         const targetId = labelToId.get(to);
@@ -196,7 +245,11 @@ export default function Toolbar() {
             id: `edge_${sourceId}_${targetId}`,
             source: sourceId,
             target: targetId,
-            data: { weight: config.weighted ? (weight ?? Math.floor(Math.random() * 20) + 1) : weight },
+            data: {
+              weight: config.weighted
+                ? weight ?? Math.floor(Math.random() * 20) + 1
+                : weight,
+            },
           });
         }
       }
@@ -204,12 +257,14 @@ export default function Toolbar() {
       setNodes(newNodes);
       setEdges(newEdges);
     } catch (err) {
-      alert('Invalid input format.\n\nNodes: space/comma separated labels\nEdges: "from-to" or "from-to:weight"');
+      alert(
+        'Invalid input format.\n\nNodes: space/comma separated labels\nEdges: "from-to" or "from-to:weight"'
+      );
       console.error(err);
     }
-  };
+  }, [manualNodes, manualEdges, config.weighted, canvasWidth, canvasHeight, setNodes, setEdges, resetHighlights]);
 
-  const handleShortestPath = () => {
+  const handleShortestPath = useCallback(() => {
     if (!pathStart || !pathEnd) {
       alert('Please enter start and end node labels');
       return;
@@ -247,7 +302,9 @@ export default function Toolbar() {
         const edge = edges.find(
           (e) =>
             (e.source === result.path[i] && e.target === result.path[i + 1]) ||
-            (!config.directed && e.source === result.path[i + 1] && e.target === result.path[i])
+            (!config.directed &&
+              e.source === result.path[i + 1] &&
+              e.target === result.path[i])
         );
         if (edge) pathEdges.add(edge.id);
       }
@@ -263,9 +320,9 @@ export default function Toolbar() {
     } else {
       alert('No path found');
     }
-  };
+  }, [pathStart, pathEnd, nodes, edges, config.weighted, config.directed, setNodes, setEdges, setAlgorithmResult]);
 
-  const handleSCC = () => {
+  const handleSCC = useCallback(() => {
     if (!config.directed) {
       alert('SCC is only applicable to directed graphs');
       return;
@@ -283,9 +340,9 @@ export default function Toolbar() {
       },
     }));
     setNodes(newNodes);
-  };
+  }, [nodes, edges, config.directed, setNodes, setAlgorithmResult]);
 
-  const handleDAGLayout = () => {
+  const handleDAGLayout = useCallback(() => {
     if (config.directed) {
       const result = dagLayout(nodes, edges);
 
@@ -304,36 +361,12 @@ export default function Toolbar() {
     } else {
       alert('DAG layout is only applicable to directed graphs');
     }
-  };
+  }, [nodes, edges, config.directed, canvasWidth, canvasHeight, setNodes, setAlgorithmResult]);
 
-  const inputStyle = {
-    width: '100%',
-    padding: '6px 8px',
-    border: '1px solid #000',
-    borderRadius: 0,
-    fontSize: 13,
-    fontFamily: 'Consolas, Monaco, monospace',
-    outline: 'none',
-  };
-
-  const btnStyle = {
-    padding: '6px 12px',
-    border: '1px solid #000',
-    borderRadius: 0,
-    fontSize: 12,
-    cursor: 'pointer',
-    backgroundColor: '#fff',
-    transition: 'all 0.15s',
-  };
-
-  const sectionTitle = {
-    fontSize: 10,
-    fontWeight: 600,
-    color: '#000',
-    marginBottom: 8,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.5px',
-  };
+  const handleClearGraph = useCallback(() => {
+    resetCounters();
+    clearGraph();
+  }, [clearGraph]);
 
   return (
     <div
@@ -355,15 +388,27 @@ export default function Toolbar() {
 
       {/* Title */}
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 16, fontWeight: 700, color: '#000' }}>Graph Tool</h1>
-        <p style={{ fontSize: 11, color: '#666', marginTop: 2 }}>ICPC Algorithm Visualizer</p>
+        <h1 style={{ fontSize: 16, fontWeight: 700, color: '#000' }}>
+          Graph Tool
+        </h1>
+        <p style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+          ICPC Algorithm Visualizer
+        </p>
       </div>
 
       {/* Settings */}
       <div style={{ marginBottom: 16 }}>
-        <div style={sectionTitle}>Settings</div>
+        <div style={sectionTitleStyle}>Settings</div>
         <div style={{ display: 'flex', gap: 16 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
             <input
               type="checkbox"
               checked={config.directed}
@@ -372,7 +417,15 @@ export default function Toolbar() {
             />
             Directed
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
             <input
               type="checkbox"
               checked={config.weighted}
@@ -386,7 +439,7 @@ export default function Toolbar() {
 
       {/* Manual Input */}
       <div style={{ marginBottom: 16 }}>
-        <div style={sectionTitle}>Manual Input</div>
+        <div style={sectionTitleStyle}>Manual Input</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <textarea
             value={manualNodes}
@@ -402,9 +455,13 @@ export default function Toolbar() {
           />
           <button
             onClick={handleManualInput}
-            style={{ ...btnStyle, backgroundColor: '#000', color: '#fff', border: 'none', fontWeight: 500 }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#333'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#000'}
+            style={primaryBtnStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#333';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#000';
+            }}
           >
             Create Graph
           </button>
@@ -413,7 +470,7 @@ export default function Toolbar() {
 
       {/* Generate */}
       <div style={{ marginBottom: 16 }}>
-        <div style={sectionTitle}>Generate</div>
+        <div style={sectionTitleStyle}>Generate</div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <input
             type="number"
@@ -446,8 +503,8 @@ export default function Toolbar() {
               key={label}
               onClick={fn}
               style={btnStyle}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#000'; e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#000'; }}
+              onMouseEnter={(e) => handleButtonHover(e, true)}
+              onMouseLeave={(e) => handleButtonHover(e, false)}
             >
               {label}
             </button>
@@ -457,7 +514,7 @@ export default function Toolbar() {
 
       {/* Grid */}
       <div style={{ marginBottom: 16 }}>
-        <div style={sectionTitle}>Grid Graph</div>
+        <div style={sectionTitleStyle}>Grid Graph</div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <input
             type="number"
@@ -482,8 +539,8 @@ export default function Toolbar() {
         <button
           onClick={handleGenerateGrid}
           style={{ ...btnStyle, width: '100%' }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#000'; e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#000'; }}
+          onMouseEnter={(e) => handleButtonHover(e, true)}
+          onMouseLeave={(e) => handleButtonHover(e, false)}
         >
           Generate Grid
         </button>
@@ -491,7 +548,7 @@ export default function Toolbar() {
 
       {/* Algorithms */}
       <div style={{ marginBottom: 16 }}>
-        <div style={sectionTitle}>Algorithms</div>
+        <div style={sectionTitleStyle}>Algorithms</div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <input
             type="text"
@@ -512,24 +569,24 @@ export default function Toolbar() {
           <button
             onClick={handleShortestPath}
             style={btnStyle}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#000'; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#000'; }}
+            onMouseEnter={(e) => handleButtonHover(e, true)}
+            onMouseLeave={(e) => handleButtonHover(e, false)}
           >
             Shortest Path
           </button>
           <button
             onClick={handleSCC}
             style={btnStyle}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#000'; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#000'; }}
+            onMouseEnter={(e) => handleButtonHover(e, true)}
+            onMouseLeave={(e) => handleButtonHover(e, false)}
           >
             SCC (Kosaraju)
           </button>
           <button
             onClick={handleDAGLayout}
             style={btnStyle}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#000'; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#000'; }}
+            onMouseEnter={(e) => handleButtonHover(e, true)}
+            onMouseLeave={(e) => handleButtonHover(e, false)}
           >
             DAG Layout
           </button>
@@ -538,18 +595,15 @@ export default function Toolbar() {
 
       {/* Clear */}
       <button
-        onClick={() => {
-          resetCounters();
-          clearGraph();
-        }}
+        onClick={handleClearGraph}
         style={{
           ...btnStyle,
           width: '100%',
           color: '#000',
           borderColor: '#000',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#000'; e.currentTarget.style.color = '#fff'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#000'; }}
+        onMouseEnter={(e) => handleButtonHover(e, true)}
+        onMouseLeave={(e) => handleButtonHover(e, false)}
       >
         Clear Graph
       </button>

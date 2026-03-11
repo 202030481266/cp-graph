@@ -1,28 +1,30 @@
 import type { Node, Edge } from '@xyflow/react';
 
+export interface GraphNodeData {
+  label: string;
+  weight?: number;
+  isLCA?: boolean;
+  sccId?: number;
+  isHighlighted?: boolean;
+  isInPath?: boolean;
+  [key: string]: unknown;
+}
+
 export interface GraphNode extends Node {
-  data: {
-    label: string;
-    weight?: number;
-    isLCA?: boolean;
-    sccId?: number;
-    isHighlighted?: boolean;
-    isInPath?: boolean;
-  };
+  data: GraphNodeData;
 }
 
 export interface GraphEdge extends Edge {
   data?: {
     weight?: number;
     isHighlighted?: boolean;
+    directed?: boolean;
   };
 }
 
 export interface GraphConfig {
   directed: boolean;
   weighted: boolean;
-  nodeCount: number;
-  edgeCount: number;
 }
 
 export interface AlgorithmResult {

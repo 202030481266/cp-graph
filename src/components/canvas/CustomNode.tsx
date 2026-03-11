@@ -1,26 +1,53 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-
-interface CustomNodeData {
-  label: string;
-  weight?: number;
-  isLCA?: boolean;
-  sccId?: number;
-  isHighlighted?: boolean;
-  isInPath?: boolean;
-}
+import type { GraphNodeData } from '../../types/graph';
+import { NODE_SIZE, getSccColor } from '../../constants/graph';
 
 interface CustomNodeProps {
-  data: CustomNodeData;
+  data: GraphNodeData;
   selected?: boolean;
 }
 
-const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
-  let bgColor = '#ffffff';
-  let borderColor = '#000000';
-  let textColor = '#000000';
+const targetHandleStyle = {
+  width: NODE_SIZE,
+  height: NODE_SIZE,
+  borderRadius: '50%',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  background: 'transparent',
+  border: 'none',
+  opacity: 0,
+} as const;
 
-  // Keep original colors for algorithm highlights
+const sourceHandleStyle = {
+  width: 16,
+  height: 16,
+  borderRadius: '50%',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  background: 'transparent',
+  border: 'none',
+  cursor: 'crosshair',
+  zIndex: 1,
+} as const;
+
+const labelStyle = {
+  fontSize: 12,
+  fontWeight: 400,
+  fontFamily: 'Arial, Helvetica, sans-serif',
+  lineHeight: 1,
+  userSelect: 'none',
+  pointerEvents: 'none',
+} as const;
+
+const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
+  let bgColor: string = '#ffffff';
+  const borderColor: string = '#000000';
+  let textColor: string = '#000000';
+
+  // Algorithm highlight colors
   if (data.isLCA) {
     bgColor = '#ff6b6b';
     textColor = '#ffffff';
@@ -29,27 +56,18 @@ const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
     textColor = '#ffffff';
   }
 
+  // SCC coloring (takes precedence)
   if (data.sccId !== undefined) {
-    const colors = ['#ff6b6b', '#4dabf7', '#51cf66', '#fcc419', '#cc5de8', '#ff922b', '#20c997', '#f06595'];
-    bgColor = colors[data.sccId % colors.length];
+    bgColor = getSccColor(data.sccId);
     textColor = '#ffffff';
   }
-
-  // Handle 样式 - 使用较小的尺寸，放置在节点边缘
-  const handleStyle = {
-    width: 8,
-    height: 8,
-    backgroundColor: 'transparent',
-    border: 'none',
-    opacity: 0,
-  };
 
   return (
     <div
       className="custom-node"
       style={{
-        width: 32,
-        height: 32,
+        width: NODE_SIZE,
+        height: NODE_SIZE,
         borderRadius: '50%',
         backgroundColor: bgColor,
         border: `1px solid ${borderColor}`,
@@ -61,27 +79,19 @@ const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
         position: 'relative',
       }}
     >
-      {/* 四个方向的 Handle - target (输入) */}
-      <Handle type="target" position={Position.Top} style={handleStyle} />
-      <Handle type="target" position={Position.Bottom} style={handleStyle} />
-      <Handle type="target" position={Position.Left} style={handleStyle} />
-      <Handle type="target" position={Position.Right} style={handleStyle} />
+      <Handle
+        type="target"
+        position={Position.Top}
+        isConnectableStart={false}
+        style={targetHandleStyle}
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        style={sourceHandleStyle}
+      />
 
-      {/* 四个方向的 Handle - source (输出) */}
-      <Handle type="source" position={Position.Top} style={handleStyle} />
-      <Handle type="source" position={Position.Bottom} style={handleStyle} />
-      <Handle type="source" position={Position.Left} style={handleStyle} />
-      <Handle type="source" position={Position.Right} style={handleStyle} />
-
-      <span style={{
-        fontSize: 12,
-        fontWeight: 400,
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        color: textColor,
-        lineHeight: 1,
-        userSelect: 'none',
-        pointerEvents: 'none',
-      }}>
+      <span style={{ ...labelStyle, color: textColor }}>
         {data.label}
       </span>
     </div>

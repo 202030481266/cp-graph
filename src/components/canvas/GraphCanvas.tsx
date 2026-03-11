@@ -9,8 +9,14 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
 } from '@xyflow/react';
-import type { Connection, NodeTypes, EdgeTypes, NodeChange, EdgeChange, Node } from '@xyflow/react';
-import type { GraphNode } from '../../types/graph';
+import type {
+  Connection,
+  NodeTypes,
+  EdgeTypes,
+  NodeChange,
+  EdgeChange,
+} from '@xyflow/react';
+import type { GraphNode, GraphEdge } from '../../types/graph';
 import '@xyflow/react/dist/style.css';
 
 import CustomNode from './CustomNode';
@@ -18,14 +24,13 @@ import CustomEdge from './CustomEdge';
 import CustomConnectionLine from './CustomConnectionLine';
 import { useGraphStore, generateNodeId, generateEdgeId } from '../../store/graphStore';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Node and edge types
 const nodeTypes: NodeTypes = {
-  default: CustomNode as any,
+  default: CustomNode,
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const edgeTypes: EdgeTypes = {
-  default: CustomEdge as any,
+  default: CustomEdge,
 };
 
 function GraphCanvasInner() {
@@ -36,40 +41,37 @@ function GraphCanvasInner() {
     nodes,
     edges,
     config,
-    setNodes: setStoreNodes,
     addNode,
     addEdge: addStoreEdge,
     removeNode,
+    removeEdge,
     toggleNodeSelection,
     resetHighlights,
   } = useGraphStore();
 
   // Add directed flag to edge data for CustomEdge to use
   const edgesWithMarkers = useMemo(() => {
-    return edges.map(edge => ({
+    return edges.map((edge) => ({
       ...edge,
-      // CustomEdge 组件已经手动绘制箭头，不需要使用 markerEnd
       data: { ...edge.data, directed: config.directed },
     }));
   }, [edges, config.directed]);
 
-  // Handle node changes (drag, select, etc.) - sync directly to store
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      const newNodes = applyNodeChanges(changes, nodes as Node[]);
-      setStoreNodes(newNodes as GraphNode[]);
-    },
-    [nodes, setStoreNodes]
-  );
+  // Handle node changes - use store getter to avoid stale closure
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    const currentNodes = useGraphStore.getState().nodes;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newNodes = applyNodeChanges(changes, currentNodes as any);
+    useGraphStore.getState().setNodes(newNodes as GraphNode[]);
+  }, []);
 
-  // Handle edge changes
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      const newEdges = applyEdgeChanges(changes, edges);
-      useGraphStore.getState().setEdges(newEdges);
-    },
-    [edges]
-  );
+  // Handle edge changes - use store getter to avoid stale closure
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    const currentEdges = useGraphStore.getState().edges;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newEdges = applyEdgeChanges(changes, currentEdges as any);
+    useGraphStore.getState().setEdges(newEdges as GraphEdge[]);
+  }, []);
 
   // Handle pane click
   const onPaneClick = useCallback(
@@ -81,11 +83,12 @@ function GraphCanvasInner() {
         });
 
         const id = generateNodeId();
-        const newNode = {
+        const currentNodes = useGraphStore.getState().nodes;
+        const newNode: GraphNode = {
           id,
           type: 'default',
           position,
-          data: { label: `${nodes.length}` },
+          data: { label: `${currentNodes.length}` },
         };
 
         addNode(newNode);
@@ -93,7 +96,7 @@ function GraphCanvasInner() {
         resetHighlights();
       }
     },
-    [screenToFlowPosition, addNode, nodes.length, resetHighlights]
+    [screenToFlowPosition, addNode, resetHighlights]
   );
 
   // Handle edge creation
@@ -101,25 +104,28 @@ function GraphCanvasInner() {
     (connection: Connection) => {
       const source = connection.source!;
       const target = connection.target!;
+      const { edges: currentEdges, config: currentConfig } = useGraphStore.getState();
 
-      const exists = edges.some(
+      const exists = currentEdges.some(
         (e) =>
           (e.source === source && e.target === target) ||
-          (!config.directed && e.source === target && e.target === source)
+          (!currentConfig.directed && e.source === target && e.target === source)
       );
 
       if (!exists) {
-        const weight = config.weighted ? Math.floor(Math.random() * 20) + 1 : undefined;
-        const newEdge = {
+        const weight = currentConfig.weighted
+          ? Math.floor(Math.random() * 20) + 1
+          : undefined;
+        const newEdge: GraphEdge = {
           id: generateEdgeId(source, target),
           source,
           target,
-          data: { weight, directed: config.directed },
+          data: { weight, directed: currentConfig.directed },
         };
         addStoreEdge(newEdge);
       }
     },
-    [addStoreEdge, edges, config.directed, config.weighted]
+    [addStoreEdge]
   );
 
   // Handle node right click to delete
@@ -145,9 +151,9 @@ function GraphCanvasInner() {
   const onEdgeContextMenu = useCallback(
     (event: React.MouseEvent, edge: { id: string }) => {
       event.preventDefault();
-      useGraphStore.getState().removeEdge(edge.id);
+      removeEdge(edge.id);
     },
-    []
+    [removeEdge]
   );
 
   return (
@@ -174,9 +180,9 @@ function GraphCanvasInner() {
         panOnDrag={[1, 2]}
         selectionMode={SelectionMode.Partial}
         proOptions={{ hideAttribution: true }}
-        // 优化拖动体验
         elevateNodesOnSelect={false}
         nodeDragThreshold={0}
+        connectionRadius={20}
       >
         <Background color="#e5e5e5" gap={20} size={0.5} />
         <Controls

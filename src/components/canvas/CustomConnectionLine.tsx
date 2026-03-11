@@ -1,68 +1,72 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import type { ConnectionLineComponentProps } from '@xyflow/react';
+import { useStore } from '@xyflow/react';
+import type { ReactFlowState } from '@xyflow/react';
 import { useGraphStore } from '../../store/graphStore';
+import { generateConnectionArrowPath } from '../../utils/arrow';
+import { getEdgePoint } from '../../utils/geometry';
+import { NODE_SIZE, NODE_INNER_RADIUS } from '../../constants/graph';
+
+const HALF_NODE_SIZE = NODE_SIZE / 2;
+const EDGE_COLOR = '#000000';
 
 export const CustomConnectionLine: React.FC<ConnectionLineComponentProps> = ({
-  fromX,
-  fromY,
+  fromNode,
   toX,
   toY,
 }) => {
   const { config } = useGraphStore();
-  const directed = config.directed;
+  const { directed } = config;
 
-  // 绘制直线
-  const linePath = `M ${fromX} ${fromY} L ${toX} ${toY}`;
+  // 从 ReactFlow store 中读取 source node 的实时位置
+  const sourcePosition = useStore(
+    useCallback(
+      (store: ReactFlowState) => {
+        const node = store.nodeLookup.get(fromNode?.id ?? '');
+        return node?.position ?? null;
+      },
+      [fromNode?.id]
+    )
+  );
 
-  // 计算箭头（如果有向图）
-  const getArrowPath = () => {
-    if (!directed) return null;
+  if (!sourcePosition) return null;
 
-    const dx = fromX - toX;
-    const dy = fromY - toY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+  const sourceCenterX = sourcePosition.x + HALF_NODE_SIZE;
+  const sourceCenterY = sourcePosition.y + HALF_NODE_SIZE;
 
-    if (distance === 0) return null;
+  // 除零保护
+  const dx = toX - sourceCenterX;
+  const dy = toY - sourceCenterY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  if (distance < 1) return null;
 
-    // 单位向量（从目标指向源）
-    const ux = dx / distance;
-    const uy = dy / distance;
+  // 计算圆边起点
+  const edgeStart = getEdgePoint(
+    sourceCenterX,
+    sourceCenterY,
+    toX,
+    toY,
+    NODE_INNER_RADIUS
+  );
 
-    // 箭头参数 - 与 CustomEdge 保持一致
-    const arrowSize = 12;
-    const baseLength = arrowSize * 0.35;
+  const linePath = `M ${edgeStart.x} ${edgeStart.y} L ${toX} ${toY}`;
 
-    // 箭头尖端位置（在鼠标位置/目标点）
-    const tipX = toX;
-    const tipY = toY;
-
-    // 垂直于边的单位向量
-    const px = -uy;
-    const py = ux;
-
-    // 箭头底部两点
-    const backX = tipX + ux * arrowSize;
-    const backY = tipY + uy * arrowSize;
-
-    return `M ${tipX} ${tipY} L ${backX + px * baseLength} ${backY + py * baseLength} L ${backX - px * baseLength} ${backY - py * baseLength} Z`;
-  };
-
-  const arrowPath = getArrowPath();
+  const arrowPath = directed
+    ? generateConnectionArrowPath(edgeStart.x, edgeStart.y, toX, toY)
+    : null;
 
   return (
     <g>
-      {/* 连接线 */}
       <path
         d={linePath}
         fill="none"
-        stroke="#000000"
+        stroke={EDGE_COLOR}
         strokeWidth={1}
       />
-      {/* 箭头（如果有向图） */}
       {arrowPath && (
         <path
           d={arrowPath}
-          fill="#000000"
+          fill={EDGE_COLOR}
           stroke="none"
         />
       )}

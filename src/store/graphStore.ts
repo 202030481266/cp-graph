@@ -20,6 +20,7 @@ interface GraphState {
   setSelectedNodes: (nodeIds: string[]) => void;
   toggleNodeSelection: (nodeId: string) => void;
   setAlgorithmResult: (result: AlgorithmResult | null) => void;
+  updateEdgeWeight: (edgeId: string, weight: number | undefined) => void;
   clearGraph: () => void;
   resetHighlights: () => void;
 }
@@ -33,8 +34,6 @@ export const useGraphStore = create<GraphState>((set) => ({
   config: {
     directed: false,
     weighted: false,
-    nodeCount: 0,
-    edgeCount: 0,
   },
   selectedNodes: [],
   algorithmResult: null,
@@ -46,7 +45,6 @@ export const useGraphStore = create<GraphState>((set) => ({
   addNode: (node) =>
     set((state) => ({
       nodes: [...state.nodes, node],
-      config: { ...state.config, nodeCount: state.config.nodeCount + 1 },
     })),
 
   removeNode: (nodeId) =>
@@ -54,24 +52,16 @@ export const useGraphStore = create<GraphState>((set) => ({
       nodes: state.nodes.filter((n) => n.id !== nodeId),
       edges: state.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
       selectedNodes: state.selectedNodes.filter((id) => id !== nodeId),
-      config: {
-        ...state.config,
-        nodeCount: state.config.nodeCount - 1,
-        edgeCount: state.config.edgeCount -
-          state.edges.filter((e) => e.source === nodeId || e.target === nodeId).length,
-      },
     })),
 
   addEdge: (edge) =>
     set((state) => ({
       edges: [...state.edges, edge],
-      config: { ...state.config, edgeCount: state.config.edgeCount + 1 },
     })),
 
   removeEdge: (edgeId) =>
     set((state) => ({
       edges: state.edges.filter((e) => e.id !== edgeId),
-      config: { ...state.config, edgeCount: state.config.edgeCount - 1 },
     })),
 
   updateNodePosition: (nodeId, x, y) =>
@@ -97,33 +87,55 @@ export const useGraphStore = create<GraphState>((set) => ({
 
   setAlgorithmResult: (result) => set({ algorithmResult: result }),
 
+  updateEdgeWeight: (edgeId, weight) =>
+    set((state) => ({
+      edges: state.edges.map((edge) =>
+        edge.id === edgeId
+          ? { ...edge, data: { ...edge.data, weight } }
+          : edge
+      ),
+    })),
+
   clearGraph: () =>
     set({
       nodes: [],
       edges: [],
       selectedNodes: [],
       algorithmResult: null,
-      config: { directed: false, weighted: false, nodeCount: 0, edgeCount: 0 },
+      config: { directed: false, weighted: false },
     }),
 
   resetHighlights: () =>
-    set((state) => ({
-      nodes: state.nodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          isLCA: false,
-          sccId: undefined,
-          isHighlighted: false,
-          isInPath: false,
-        },
-      })),
-      edges: state.edges.map((edge) => ({
-        ...edge,
-        data: { ...edge.data, isHighlighted: false },
-      })),
-      algorithmResult: null,
-    })),
+    set((state) => {
+      // Check if there's anything to reset (optimization)
+      const hasHighlights =
+        state.nodes.some(
+          (n) => n.data.isLCA || n.data.isHighlighted || n.data.isInPath || n.data.sccId !== undefined
+        ) ||
+        state.edges.some((e) => e.data?.isHighlighted);
+
+      if (!hasHighlights && !state.algorithmResult) {
+        return state; // No change needed
+      }
+
+      return {
+        nodes: state.nodes.map((node) => ({
+          ...node,
+          data: {
+            ...node.data,
+            isLCA: false,
+            sccId: undefined,
+            isHighlighted: false,
+            isInPath: false,
+          },
+        })),
+        edges: state.edges.map((edge) => ({
+          ...edge,
+          data: { ...edge.data, isHighlighted: false },
+        })),
+        algorithmResult: null,
+      };
+    }),
 }));
 
 export const generateNodeId = () => `node_${nodeIdCounter++}`;
